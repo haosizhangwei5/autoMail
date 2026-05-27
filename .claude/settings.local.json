@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf node_modules server.js auth.js sheets.js gmail.js package.json package-lock.json public/ *)"
+    ],
+    "additionalDirectories": [
+      "/Users/nagaokouji/Documents/auto-mail/node_modules"
+    ]
+  }
+}

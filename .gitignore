@@ -1,12 +1,6 @@
-# 環境変数（絶対にコミットしない）
+# 認証情報・シークレット
 .env
-
-# Node modules
-node_modules/
-
-# ログ
-*.log
-npm-debug.log*
+.clasprc.json
 
 # OS
 .DS_Store
@@ -17,3 +11,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Node（claspのインストール用）
+node_modules/
