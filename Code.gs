@@ -1,34 +1,11 @@
 /**
  * 一斉メール送信システム - Google Apps Script
- * executeAs: USER_DEPLOYING（デプロイ者のGmail・Sheetsを使用）
+ *
+ * executeAs : USER_ACCESSING（アクセスしたユーザーのGmail・権限で動作）
+ * access    : ANYONE（URLを知っていれば誰でも使用可能）
+ *
+ * ★ 初回アクセス時はOAuth承認が必要。フロントで承認URLを案内する。
  */
-
-// ============================================================
-// Web アプリ エントリポイント
-// ============================================================
-
-/**
- * GETリクエストでHTMLページを返す
- */
-function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('一斉メール送信システム')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-// ============================================================
-// 認証・ユーザー情報
-// ============================================================
-
-/**
- * ログイン中のユーザー情報を返す
- * @returns {{ email: string }}
- */
-function getAuthInfo() {
-  const email = Session.getEffectiveUser().getEmail();
-  if (!email) throw new Error('ユーザー情報を取得できませんでした。再読み込みしてください。');
-  return { email };
-}
 
 // ============================================================
 // スプレッドシート設定（固定）
@@ -40,19 +17,55 @@ const SPREADSHEET_ID_ = '1jvt9gzQDxIrwTr4gwZS1Umhu1CULhi8GMKd8F1UFTKQ';
 const SHEET_NAME_ = 'メールアドレス一覧';
 
 // ============================================================
+// Web アプリ エントリポイント
+// ============================================================
+
+function doGet(e) {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('一斉メール送信システム')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ============================================================
+// 認証状態チェック（フロントが最初に呼ぶ）
+// ============================================================
+
+/**
+ * ユーザーの OAuth 承認状態を確認する。
+ * 未承認の場合は承認URLを返す（フロントでボタン表示）。
+ *
+ * @returns {{ authorized: boolean, email?: string, authUrl?: string }}
+ */
+function getAuthStatus() {
+  try {
+    const authInfo = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
+    const isRequired =
+      authInfo.getAuthorizationStatus() === ScriptApp.AuthorizationStatus.REQUIRED;
+
+    if (isRequired) {
+      return { authorized: false, authUrl: authInfo.getAuthorizationUrl() };
+    }
+
+    const email = Session.getEffectiveUser().getEmail();
+    return { authorized: true, email: email || '' };
+
+  } catch (e) {
+    // 承認チェック自体が失敗した場合（まれ）
+    return { authorized: false, authUrl: '', error: e.message };
+  }
+}
+
+// ============================================================
 // スプレッドシート読み込み
 // ============================================================
 
 /** 名前列として認識するキーワード */
-const NAME_KEYWORDS_ = ['名前', 'name', '氏名', '姓名', 'お名前', 'フルネーム', '担当者'];
+const NAME_KEYWORDS_  = ['名前', 'name', '氏名', '姓名', 'お名前', 'フルネーム', '担当者'];
 /** メールアドレス列として認識するキーワード */
 const EMAIL_KEYWORDS_ = ['メールアドレス', 'email', 'mail', 'e-mail', 'メール', 'アドレス', 'address'];
 
 /**
  * ヘッダー行からキーワードにマッチする列インデックスを返す
- * @param {string[]} headers
- * @param {string[]} keywords
- * @returns {number} インデックス（見つからない場合-1）
  */
 function findColumnIndex_(headers, keywords) {
   for (let i = 0; i < headers.length; i++) {
@@ -63,59 +76,70 @@ function findColumnIndex_(headers, keywords) {
 }
 
 /**
- * 固定スプレッドシートから宛先リストを読み込む（引数なし）
- * @returns {{ recipients: Array<{name:string, email:string}>, total:number, sheetTitle:string, nameColumn:string, emailColumn:string }}
+ * 固定スプレッドシートから宛先リストを読み込む
+ * @returns {{ recipients, total, sheetTitle, nameColumn, emailColumn }}
  */
 function loadRecipients() {
+  // --- スプレッドシートを開く ---
   let ss;
   try {
     ss = SpreadsheetApp.openById(SPREADSHEET_ID_);
   } catch (e) {
-    throw new Error('スプレッドシートを開けません: ' + e.message);
+    // 生のエラーメッセージをそのまま返すことで原因を特定しやすくする
+    throw new Error('スプレッドシートを開けませんでした。\n詳細: ' + e.message);
   }
 
+  // --- シートを名前で取得 ---
   const sheet = ss.getSheetByName(SHEET_NAME_);
   if (!sheet) {
-    throw new Error('シート「' + SHEET_NAME_ + '」が見つかりません。スプレッドシート内のシート名を確認してください。');
+    const sheetNames = ss.getSheets().map(s => s.getName()).join(', ');
+    throw new Error(
+      'シート「' + SHEET_NAME_ + '」が見つかりません。\n' +
+      '存在するシート: ' + sheetNames
+    );
   }
 
+  // --- データ取得 ---
   const data = sheet.getDataRange().getValues();
-
-  if (!data || data.length === 0) {
-    throw new Error('スプレッドシートにデータが見つかりません');
+  if (!data || data.length < 2) {
+    throw new Error('シートにデータが1件もありません（ヘッダー行のみ、または空）');
   }
 
-  const headers = data[0].map(h => String(h || '').trim());
+  // --- ヘッダー解析 ---
+  const headers  = data[0].map(h => String(h || '').trim());
   const nameIdx  = findColumnIndex_(headers, NAME_KEYWORDS_);
   const emailIdx = findColumnIndex_(headers, EMAIL_KEYWORDS_);
 
   if (nameIdx === -1) {
     throw new Error(
-      '「名前」列が見つかりません。1行目のヘッダーに「名前」「name」「氏名」などを含めてください。\n' +
-      '検出されたヘッダー: ' + headers.join(', ')
+      '「名前」列が見つかりません。\n' +
+      'ヘッダーに「名前」「name」「氏名」などを含めてください。\n' +
+      '現在のヘッダー: ' + headers.join(', ')
     );
   }
   if (emailIdx === -1) {
     throw new Error(
-      '「メールアドレス」列が見つかりません。1行目のヘッダーに「メールアドレス」「email」などを含めてください。\n' +
-      '検出されたヘッダー: ' + headers.join(', ')
+      '「メールアドレス」列が見つかりません。\n' +
+      'ヘッダーに「メールアドレス」「email」「mail」などを含めてください。\n' +
+      '現在のヘッダー: ' + headers.join(', ')
     );
   }
 
+  // --- データ行を解析 ---
   const recipients = [];
   for (let i = 1; i < data.length; i++) {
     const name  = String(data[i][nameIdx]  || '').trim();
     const email = String(data[i][emailIdx] || '').trim();
-    if (!name && !email) continue; // 空行スキップ
+    if (!name && !email) continue;
     if (!email || !email.includes('@')) {
-      Logger.log('行 %s: 無効なメールアドレス「%s」をスキップ', i + 1, email);
+      Logger.log('行 %s をスキップ（無効なアドレス: %s）', i + 1, email);
       continue;
     }
     recipients.push({ name, email });
   }
 
   if (recipients.length === 0) {
-    throw new Error('有効な宛先が1件も見つかりませんでした。スプレッドシートのデータを確認してください。');
+    throw new Error('有効な宛先が1件も見つかりませんでした');
   }
 
   return {
@@ -128,16 +152,9 @@ function loadRecipients() {
 }
 
 // ============================================================
-// メール構築
+// メール構築（共通）
 // ============================================================
 
-/**
- * HTMLメール本文を生成する
- * @param {string} recipientName - 受信者名
- * @param {string} bodyText - 本文（改行区切り）
- * @param {string|null} imageBase64 - data:image/...;base64,... 形式
- * @returns {string} HTML文字列
- */
 function buildHtmlBody_(recipientName, bodyText, imageBase64) {
   const bodyHtml = bodyText
     .replace(/&/g, '&amp;')
@@ -151,22 +168,15 @@ function buildHtmlBody_(recipientName, bodyText, imageBase64) {
       '</div>'
     : '';
 
-  return '<!DOCTYPE html>\n' +
-    '<html lang="ja"><head><meta charset="UTF-8"></head><body>\n' +
+  return '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body>' +
     '<div style="font-family:\'Helvetica Neue\',Arial,\'Hiragino Kaku Gothic ProN\',Meiryo,sans-serif;' +
-    'max-width:600px;margin:0 auto;padding:20px;color:#333;">\n' +
-    '  <p style="margin-bottom:16px;">' + recipientName + '様</p>\n' +
-    '  <div style="line-height:1.8;">' + bodyHtml + '</div>\n' +
-    imageSection + '\n' +
-    '</div>\n' +
-    '</body></html>';
+    'max-width:600px;margin:0 auto;padding:20px;color:#333;">' +
+    '<p style="margin-bottom:16px;">' + recipientName + '様</p>' +
+    '<div style="line-height:1.8;">' + bodyHtml + '</div>' +
+    imageSection +
+    '</div></body></html>';
 }
 
-/**
- * HTMLタグを除去したプレーンテキストを返す（GmailApp の body 引数用）
- * @param {string} html
- * @returns {string}
- */
 function stripHtml_(html) {
   return html
     .replace(/<br\s*\/?>/gi, '\n')
@@ -186,9 +196,7 @@ function stripHtml_(html) {
 // ============================================================
 
 /**
- * テストメールを実際に送信する
- * @param {{ to:string, subject:string, body:string, imageBase64:string|null, previewName:string }} params
- * @returns {{ success:boolean, message:string }}
+ * テストメールを送信する（送信者 = アクセスしたユーザー）
  */
 function sendTestEmail(params) {
   const htmlBody = buildHtmlBody_(
@@ -196,7 +204,6 @@ function sendTestEmail(params) {
     params.body,
     params.imageBase64 || null
   );
-
   try {
     GmailApp.sendEmail(
       params.to,
@@ -207,20 +214,16 @@ function sendTestEmail(params) {
   } catch (e) {
     throw new Error('メール送信に失敗しました: ' + e.message);
   }
-
-  return { success: true, message: params.to + ' へ送信しました' };
+  return { success: true };
 }
 
 // ============================================================
-// 下書き一斉作成（バッチ処理）
+// 下書き一斉作成（バッチ）
 // ============================================================
 
 /**
- * 宛先リストの一部（バッチ）の下書きをまとめて作成する。
+ * 下書きをバッチ作成する（送信者 = アクセスしたユーザー）
  * フロントエンドから10件ずつ繰り返し呼ばれる。
- *
- * @param {{ recipients: Array<{name:string, email:string}>, subject:string, body:string, imageBase64:string|null }} params
- * @returns {{ success:number, failed:number, errors:Array<{name:string, email:string, error:string}> }}
  */
 function createDraftBatch(params) {
   const { recipients, subject, body, imageBase64 } = params;
@@ -242,11 +245,7 @@ function createDraftBatch(params) {
       errors.push({ name: r.name, email: r.email, error: e.message });
       Logger.log('下書き作成エラー [%s]: %s', r.email, e.message);
     }
-
-    // APIレート制限対策（最後の1件以外は100ms待機）
-    if (i < recipients.length - 1) {
-      Utilities.sleep(100);
-    }
+    if (i < recipients.length - 1) Utilities.sleep(100);
   }
 
   return { success, failed: errors.length, errors };
