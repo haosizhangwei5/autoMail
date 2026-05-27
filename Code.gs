@@ -1,6 +1,6 @@
 /**
  * 一斉メール送信システム - Google Apps Script
- * executeAs: USER_ACCESSING（アクセス者のGmail・Sheetsを使用）
+ * executeAs: USER_DEPLOYING（デプロイ者のGmail・Sheetsを使用）
  */
 
 // ============================================================
@@ -71,7 +71,7 @@ function loadRecipients() {
   try {
     ss = SpreadsheetApp.openById(SPREADSHEET_ID_);
   } catch (e) {
-    throw new Error('スプレッドシートを開けません。このGoogleアカウントに共有されているか確認してください。');
+    throw new Error('スプレッドシートを開けません: ' + e.message);
   }
 
   const sheet = ss.getSheetByName(SHEET_NAME_);
