@@ -456,27 +456,25 @@
   <!-- ======== STEP 1: スプレッドシート読み込み ======== -->
   <div class="step-container active" id="step-1">
     <div class="card">
-      <div class="card-title"><span>📊</span>スプレッドシートを読み込む</div>
+      <div class="card-title"><span>📊</span>宛先リストを読み込む</div>
 
-      <div class="alert alert-info" style="margin-bottom:14px;">
-        <span class="alert-icon">💡</span>
+      <!-- 固定シート情報 -->
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);margin-bottom:16px;">
+        <span style="font-size:1.4rem;flex-shrink:0;">📋</span>
         <div>
-          Googleアカウントでアクセス済みのスプレッドシートを使用できます。
-          <strong>1行目をヘッダー行</strong>にし、「名前」「メールアドレス」の列を含めてください。
+          <div style="font-weight:600;color:var(--gray-800);font-size:0.9rem;margin-bottom:4px;">メールアドレス一覧</div>
+          <a href="https://docs.google.com/spreadsheets/d/1jvt9gzQDxIrwTr4gwZS1Umhu1CULhi8GMKd8F1UFTKQ/edit"
+            target="_blank"
+            style="font-size:0.78rem;color:var(--primary);word-break:break-all;">
+            docs.google.com/spreadsheets/d/1jvt9gzQDxIrw…
+          </a>
         </div>
       </div>
 
       <div id="step1-alert"></div>
 
-      <div class="form-group">
-        <label class="form-label" for="sheet-url">スプレッドシートのURL または ID</label>
-        <input class="form-input" type="text" id="sheet-url"
-          placeholder="https://docs.google.com/spreadsheets/d/xxxxx/edit" />
-        <div class="form-hint">URLをそのまま貼り付けてください。IDのみでも可。</div>
-      </div>
-
       <button class="btn btn-primary" id="load-btn" onclick="loadSheet()">
-        <span id="load-text">📂 読み込む</span>
+        <span id="load-text">📂 宛先を読み込む</span>
         <div class="spinner" id="load-spinner" style="display:none;"></div>
       </button>
     </div>
@@ -680,10 +678,6 @@
       })
       .getAuthInfo();
 
-    // Enter で読み込み
-    document.getElementById('sheet-url').addEventListener('keydown', e => {
-      if (e.key === 'Enter') loadSheet();
-    });
     document.getElementById('mail-subject').addEventListener('input', syncStep2Btn);
     document.getElementById('mail-body').addEventListener('input', syncStep2Btn);
   });
@@ -709,25 +703,22 @@
 
   // ===== STEP 1: スプレッドシート読み込み =====
   function loadSheet() {
-    const input = document.getElementById('sheet-url').value.trim();
-    if (!input) { setAlert('step1-alert', 'warning', 'URLを入力してください'); return; }
-
     setBtnLoading('load-btn', 'load-text', 'load-spinner', true, '読み込み中...');
     clearAlert('step1-alert');
 
     google.script.run
       .withSuccessHandler(data => {
-        setBtnLoading('load-btn', 'load-text', 'load-spinner', false, '📂 読み込む');
+        setBtnLoading('load-btn', 'load-text', 'load-spinner', false, '📂 宛先を読み込む');
         state.recipients = data.recipients;
         renderRecipients(data);
         setAlert('step1-alert', 'success',
           '✅ ' + data.total + '件の宛先を読み込みました（シート: ' + esc(data.sheetTitle) + '）');
       })
       .withFailureHandler(err => {
-        setBtnLoading('load-btn', 'load-text', 'load-spinner', false, '📂 読み込む');
+        setBtnLoading('load-btn', 'load-text', 'load-spinner', false, '📂 宛先を読み込む');
         setAlert('step1-alert', 'danger', '❌ ' + esc(err.message));
       })
-      .loadRecipients(input);
+      .loadRecipients();
   }
 
   function renderRecipients(data) {

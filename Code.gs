@@ -31,6 +31,15 @@ function getAuthInfo() {
 }
 
 // ============================================================
+// スプレッドシート設定（固定）
+// ============================================================
+
+/** 宛先管理スプレッドシートID */
+const SPREADSHEET_ID_ = '1jvt9gzQDxIrwTr4gwZS1Umhu1CULhi8GMKd8F1UFTKQ';
+/** 宛先管理シート名 */
+const SHEET_NAME_ = 'メールアドレス一覧';
+
+// ============================================================
 // スプレッドシート読み込み
 // ============================================================
 
@@ -38,18 +47,6 @@ function getAuthInfo() {
 const NAME_KEYWORDS_ = ['名前', 'name', '氏名', '姓名', 'お名前', 'フルネーム', '担当者'];
 /** メールアドレス列として認識するキーワード */
 const EMAIL_KEYWORDS_ = ['メールアドレス', 'email', 'mail', 'e-mail', 'メール', 'アドレス', 'address'];
-
-/**
- * SpreadsheetのURLまたはIDからIDを抽出する
- * @param {string} input
- * @returns {string}
- */
-function extractSpreadsheetId_(input) {
-  const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9\-_]+)/);
-  if (urlMatch) return urlMatch[1];
-  if (/^[a-zA-Z0-9\-_]+$/.test(input.trim())) return input.trim();
-  throw new Error('スプレッドシートのURLまたはIDの形式が正しくありません');
-}
 
 /**
  * ヘッダー行からキーワードにマッチする列インデックスを返す
@@ -66,23 +63,22 @@ function findColumnIndex_(headers, keywords) {
 }
 
 /**
- * スプレッドシートから宛先リストを読み込む
- * @param {string} spreadsheetInput - URLまたはID
+ * 固定スプレッドシートから宛先リストを読み込む（引数なし）
  * @returns {{ recipients: Array<{name:string, email:string}>, total:number, sheetTitle:string, nameColumn:string, emailColumn:string }}
  */
-function loadRecipients(spreadsheetInput) {
-  const id = extractSpreadsheetId_(spreadsheetInput);
-
+function loadRecipients() {
   let ss;
   try {
-    ss = SpreadsheetApp.openById(id);
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID_);
   } catch (e) {
-    throw new Error(
-      'スプレッドシートを開けません。URLを確認するか、このGoogleアカウントに共有されているか確認してください。'
-    );
+    throw new Error('スプレッドシートを開けません。このGoogleアカウントに共有されているか確認してください。');
   }
 
-  const sheet = ss.getSheets()[0];
+  const sheet = ss.getSheetByName(SHEET_NAME_);
+  if (!sheet) {
+    throw new Error('シート「' + SHEET_NAME_ + '」が見つかりません。スプレッドシート内のシート名を確認してください。');
+  }
+
   const data = sheet.getDataRange().getValues();
 
   if (!data || data.length === 0) {
