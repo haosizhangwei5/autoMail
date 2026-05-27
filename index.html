@@ -6,871 +6,636 @@
   <title>一斉メール送信システム</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --primary: #4F46E5;
-      --primary-dark: #4338CA;
-      --primary-light: #EEF2FF;
-      --success: #059669;
-      --success-light: #ECFDF5;
-      --warning: #D97706;
-      --warning-light: #FFFBEB;
-      --danger: #DC2626;
-      --danger-light: #FEF2F2;
-      --gray-50: #F9FAFB; --gray-100: #F3F4F6; --gray-200: #E5E7EB;
-      --gray-300: #D1D5DB; --gray-400: #9CA3AF; --gray-500: #6B7280;
-      --gray-600: #4B5563; --gray-700: #374151; --gray-800: #1F2937;
-      --gray-900: #111827;
-      --radius: 12px; --radius-sm: 8px;
-      --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
-      --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
-      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+      --primary:#4F46E5; --primary-dark:#4338CA; --primary-light:#EEF2FF;
+      --success:#059669; --success-light:#ECFDF5;
+      --warning:#D97706; --warning-light:#FFFBEB;
+      --danger:#DC2626;  --danger-light:#FEF2F2;
+      --g50:#F9FAFB; --g100:#F3F4F6; --g200:#E5E7EB; --g300:#D1D5DB;
+      --g400:#9CA3AF; --g500:#6B7280; --g600:#4B5563;
+      --g700:#374151; --g800:#1F2937; --g900:#111827;
+      --r:12px; --rs:8px;
+      --sh:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+      --shm:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+      --shl:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
     }
-
     body {
-      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-      background: var(--gray-50);
-      color: var(--gray-800);
-      min-height: 100vh;
-      line-height: 1.6;
+      font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;
+      background:var(--g50); color:var(--g800); min-height:100vh; line-height:1.6;
     }
 
-    /* ===== ヘッダー ===== */
-    .app-header {
-      background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
-      color: #fff; padding: 16px 24px;
-      display: flex; align-items: center; justify-content: space-between;
-      box-shadow: var(--shadow-md);
-      position: sticky; top: 0; z-index: 100;
+    /* ヘッダー */
+    .header {
+      background:linear-gradient(135deg,var(--primary) 0%,#7C3AED 100%);
+      color:#fff; padding:16px 24px;
+      display:flex; align-items:center; justify-content:space-between;
+      box-shadow:var(--shm); position:sticky; top:0; z-index:100;
     }
-    .app-header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
-    .app-header h1 span { font-size: 1.3rem; margin-right: 8px; }
-    .auth-badge {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 0.82rem;
-      background: rgba(255,255,255,.15);
-      padding: 6px 12px; border-radius: 24px;
-      max-width: 220px; overflow: hidden;
+    .header h1 { font-size:1.15rem; font-weight:700; }
+    .header h1 span { margin-right:8px; }
+    .abadge {
+      display:flex; align-items:center; gap:8px; font-size:0.82rem;
+      background:rgba(255,255,255,.15); padding:6px 12px; border-radius:24px;
+      max-width:230px; overflow:hidden;
     }
-    .auth-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .auth-dot.ok      { background: #6EE7B7; }
-    .auth-dot.warn    { background: #FCD34D; }
-    .auth-dot.loading { background: var(--gray-300); animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-    .auth-email { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .adot {
+      width:8px; height:8px; border-radius:50%; flex-shrink:0;
+      background:var(--g300);
+    }
+    .adot.on { background:#6EE7B7; }
+    .aemail { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    /* ===== コンテナ ===== */
-    .container { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+    /* コンテナ */
+    .wrap { max-width:860px; margin:0 auto; padding:24px 16px 80px; }
 
-    /* ===== 承認画面 ===== */
-    #auth-screen {
-      display: flex; align-items: center; justify-content: center;
-      min-height: calc(100vh - 60px);
+    /* ステップインジケーター */
+    .steps {
+      display:flex; align-items:flex-start; justify-content:center;
+      margin-bottom:28px; overflow-x:auto; padding:4px 0 8px;
     }
-    .auth-card {
-      background: #fff; border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-      padding: 48px 36px; text-align: center;
-      max-width: 440px; width: 100%;
+    .si {
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      position:relative; flex:1; min-width:72px;
     }
-    .auth-card .big-icon { font-size: 3.5rem; margin-bottom: 20px; }
-    .auth-card h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 10px; color: var(--gray-900); }
-    .auth-card p  { color: var(--gray-600); font-size: 0.875rem; margin-bottom: 24px; line-height: 1.7; }
-    .scope-list {
-      background: var(--gray-50); border-radius: var(--radius-sm);
-      padding: 14px 16px; text-align: left;
-      margin-bottom: 24px; font-size: 0.84rem; color: var(--gray-700);
+    .si::after {
+      content:''; position:absolute; top:15px; left:50%;
+      width:100%; height:2px; background:var(--g200); z-index:0;
     }
-    .scope-list li { padding: 3px 0; list-style: none; }
-    .scope-list li::before { content: '✅ '; }
+    .si:last-child::after { display:none; }
+    .si.done::after { background:var(--primary); }
+    .snum {
+      width:30px; height:30px; border-radius:50%;
+      background:var(--g200); color:var(--g400);
+      font-weight:700; font-size:0.82rem;
+      display:flex; align-items:center; justify-content:center;
+      position:relative; z-index:1; transition:all .3s;
+    }
+    .si.active .snum { background:var(--primary); color:#fff; box-shadow:0 0 0 4px var(--primary-light); }
+    .si.done   .snum { background:var(--primary); color:#fff; }
+    .slabel { font-size:0.7rem; color:var(--g400); text-align:center; font-weight:500; line-height:1.3; }
+    .si.active .slabel { color:var(--primary); font-weight:700; }
+    .si.done   .slabel { color:var(--primary); }
 
-    /* ===== ローディング画面 ===== */
-    #loading-screen {
-      display: flex; align-items: center; justify-content: center;
-      min-height: calc(100vh - 60px);
-    }
-    .loading-inner { text-align: center; color: var(--gray-500); }
-    .loading-inner .big-spinner {
-      width: 48px; height: 48px;
-      border: 4px solid var(--gray-200);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-      margin: 0 auto 16px;
-    }
+    /* カード */
+    .card { background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:24px; margin-bottom:16px; }
+    .ctitle { font-size:1rem; font-weight:700; color:var(--g900); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
 
-    /* ===== メインUI ===== */
-    #main-ui { display: none; }
+    /* フォーム */
+    .fg { margin-bottom:16px; }
+    .fl { display:block; font-size:0.84rem; font-weight:600; color:var(--g700); margin-bottom:6px; }
+    .fi, .ft {
+      width:100%; padding:10px 14px;
+      border:1.5px solid var(--g200); border-radius:var(--rs);
+      font-size:0.9rem; font-family:inherit; color:var(--g800);
+      background:#fff; outline:none; transition:border-color .2s, box-shadow .2s;
+    }
+    .fi:focus, .ft:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+    .ft { resize:vertical; min-height:130px; }
+    .fh { font-size:0.77rem; color:var(--g400); margin-top:4px; }
 
-    /* ===== ステップインジケーター ===== */
-    .step-indicator {
-      display: flex; align-items: flex-start; justify-content: center;
-      margin-bottom: 28px; overflow-x: auto; padding: 4px 0 8px;
-    }
-    .step-item {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 6px; position: relative; flex: 1; min-width: 72px;
-    }
-    .step-item::after {
-      content: ''; position: absolute; top: 15px; left: 50%;
-      width: 100%; height: 2px; background: var(--gray-200); z-index: 0;
-    }
-    .step-item:last-child::after { display: none; }
-    .step-item.done::after { background: var(--primary); }
-    .step-num {
-      width: 30px; height: 30px; border-radius: 50%;
-      background: var(--gray-200); color: var(--gray-400);
-      font-weight: 700; font-size: 0.82rem;
-      display: flex; align-items: center; justify-content: center;
-      position: relative; z-index: 1; transition: all .3s;
-    }
-    .step-item.active .step-num { background: var(--primary); color: #fff; box-shadow: 0 0 0 4px var(--primary-light); }
-    .step-item.done   .step-num { background: var(--primary); color: #fff; }
-    .step-label { font-size: 0.7rem; color: var(--gray-400); text-align: center; font-weight: 500; line-height: 1.3; }
-    .step-item.active .step-label { color: var(--primary); font-weight: 700; }
-    .step-item.done   .step-label { color: var(--primary); }
-
-    /* ===== カード ===== */
-    .card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 16px; }
-    .card-title { font-size: 1rem; font-weight: 700; color: var(--gray-900); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-
-    /* ===== フォーム ===== */
-    .form-group { margin-bottom: 16px; }
-    .form-label { display: block; font-size: 0.84rem; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; }
-    .form-input, .form-textarea {
-      width: 100%; padding: 10px 14px;
-      border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
-      font-size: 0.9rem; font-family: inherit; color: var(--gray-800); background: #fff;
-      transition: border-color .2s, box-shadow .2s; outline: none;
-    }
-    .form-input:focus, .form-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
-    .form-textarea { resize: vertical; min-height: 130px; }
-    .form-hint { font-size: 0.77rem; color: var(--gray-400); margin-top: 4px; }
-
-    /* ===== ボタン ===== */
+    /* ボタン */
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 10px 20px; border: none; border-radius: var(--radius-sm);
-      font-size: 0.875rem; font-weight: 600; font-family: inherit;
-      cursor: pointer; transition: all .2s; text-decoration: none; white-space: nowrap; line-height: 1;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:10px 20px; border:none; border-radius:var(--rs);
+      font-size:0.875rem; font-weight:600; font-family:inherit;
+      cursor:pointer; transition:all .2s; text-decoration:none; white-space:nowrap; line-height:1;
     }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-    .btn-success { background: var(--success); color: #fff; }
-    .btn-success:hover:not(:disabled) { background: #047857; box-shadow: var(--shadow-md); transform: translateY(-1px); }
-    .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
-    .btn-outline:hover:not(:disabled) { background: var(--primary-light); }
-    .btn-full { width: 100%; }
-    .btn-lg { padding: 13px 24px; font-size: 1rem; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; transform:none !important; }
+    .bp  { background:var(--primary); color:#fff; }
+    .bp:hover:not(:disabled)  { background:var(--primary-dark); box-shadow:var(--shm); transform:translateY(-1px); }
+    .bs  { background:var(--success); color:#fff; }
+    .bs:hover:not(:disabled)  { background:#047857; box-shadow:var(--shm); transform:translateY(-1px); }
+    .bo  { background:#fff; color:var(--primary); border:1.5px solid var(--primary); }
+    .bo:hover:not(:disabled)  { background:var(--primary-light); }
+    .bfull { width:100%; }
+    .blg { padding:13px 24px; font-size:1rem; }
 
-    /* ===== アラート ===== */
+    /* アラート */
     .alert {
-      padding: 11px 14px; border-radius: var(--radius-sm);
-      font-size: 0.855rem; margin-bottom: 14px;
-      display: flex; align-items: flex-start; gap: 9px;
+      padding:11px 14px; border-radius:var(--rs);
+      font-size:0.855rem; margin-bottom:14px;
+      display:flex; align-items:flex-start; gap:9px;
     }
-    .alert-icon { flex-shrink: 0; margin-top: 1px; }
-    .alert-success { background: var(--success-light); color: #065F46; }
-    .alert-warning { background: var(--warning-light); color: #92400E; }
-    .alert-danger  { background: var(--danger-light);  color: #991B1B; }
-    .alert-info    { background: var(--primary-light);  color: #3730A3; }
-    /* 複数行エラー用 */
-    .alert pre { font-family: inherit; white-space: pre-wrap; word-break: break-all; margin: 0; }
+    .ai { flex-shrink:0; margin-top:1px; }
+    .aok  { background:var(--success-light); color:#065F46; }
+    .aw   { background:var(--warning-light); color:#92400E; }
+    .aer  { background:var(--danger-light);  color:#991B1B; }
+    .ainfo{ background:var(--primary-light);  color:#3730A3; }
+    .alert pre { font-family:inherit; white-space:pre-wrap; word-break:break-all; margin:0; font-size:0.82rem; }
 
-    /* ===== テーブル ===== */
-    .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-200); margin-top: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.855rem; }
-    thead { background: var(--gray-50); }
-    th { padding: 9px 13px; text-align: left; font-weight: 600; color: var(--gray-600); font-size: 0.77rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1.5px solid var(--gray-200); }
-    td { padding: 9px 13px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: var(--gray-50); }
-    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 0.74rem; font-weight: 600; }
-    .badge-primary { background: var(--primary-light); color: var(--primary); }
+    /* テーブル */
+    .tw { overflow-x:auto; border-radius:var(--rs); border:1.5px solid var(--g200); margin-top:10px; }
+    table { width:100%; border-collapse:collapse; font-size:0.855rem; }
+    thead { background:var(--g50); }
+    th { padding:9px 13px; text-align:left; font-weight:600; color:var(--g600); font-size:0.77rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1.5px solid var(--g200); }
+    td { padding:9px 13px; border-bottom:1px solid var(--g100); color:var(--g700); }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover td { background:var(--g50); }
+    .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:12px; font-size:.74rem; font-weight:600; background:var(--primary-light); color:var(--primary); }
 
-    /* ===== 進捗バー ===== */
-    .progress-wrap { margin: 14px 0; }
-    .progress-header { display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--gray-600); margin-bottom: 7px; font-weight: 500; }
-    .progress-bar { height: 10px; background: var(--gray-200); border-radius: 10px; overflow: hidden; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #7C3AED); border-radius: 10px; transition: width .4s ease; width: 0%; }
+    /* 進捗バー */
+    .pw { margin:14px 0; }
+    .ph { display:flex; justify-content:space-between; font-size:.84rem; color:var(--g600); margin-bottom:7px; font-weight:500; }
+    .pb { height:10px; background:var(--g200); border-radius:10px; overflow:hidden; }
+    .pf { height:100%; background:linear-gradient(90deg,var(--primary),#7C3AED); border-radius:10px; transition:width .4s ease; width:0%; }
 
-    /* ===== プレビュー ===== */
-    .preview-label { font-size: 0.77rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-    .preview-frame { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); overflow: hidden; }
-    .preview-header { padding: 7px 13px; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-size: 0.78rem; color: var(--gray-500); }
-    .preview-body { padding: 16px; min-height: 90px; font-size: 14px; line-height: 1.8; color: #333; }
-    .preview-body img { max-width: 100%; height: auto; margin-top: 12px; }
+    /* メールプレビュー */
+    .pvlabel { font-size:.77rem; font-weight:600; color:var(--g500); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+    .pvframe { border:1.5px solid var(--g200); border-radius:var(--rs); overflow:hidden; }
+    .pvhead  { padding:7px 13px; background:var(--g50); border-bottom:1px solid var(--g200); font-size:.78rem; color:var(--g500); }
+    .pvbody  { padding:16px; min-height:90px; font-size:14px; line-height:1.8; color:#333; }
+    .pvbody img { max-width:100%; height:auto; margin-top:12px; }
 
-    /* ===== 画像アップロード ===== */
-    .image-upload-area {
-      border: 2px dashed var(--gray-300); border-radius: var(--radius-sm);
-      padding: 22px; text-align: center; cursor: pointer; transition: all .2s; background: var(--gray-50);
+    /* 画像アップロード */
+    .imgup {
+      border:2px dashed var(--g300); border-radius:var(--rs);
+      padding:22px; text-align:center; cursor:pointer; transition:all .2s; background:var(--g50);
     }
-    .image-upload-area:hover, .image-upload-area.dragover { border-color: var(--primary); background: var(--primary-light); }
-    .image-upload-area input[type="file"] { display: none; }
-    .img-preview-wrap { position: relative; display: inline-block; margin-top: 10px; }
-    .img-preview-wrap img { max-width: 180px; max-height: 110px; border-radius: var(--radius-sm); object-fit: contain; border: 1.5px solid var(--gray-200); }
-    .img-remove-btn { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--danger); color: #fff; border: none; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .imgup:hover, .imgup.dg { border-color:var(--primary); background:var(--primary-light); }
+    .imgup input { display:none; }
+    .ipw { position:relative; display:inline-block; margin-top:10px; }
+    .ipw img { max-width:180px; max-height:110px; border-radius:var(--rs); object-fit:contain; border:1.5px solid var(--g200); }
+    .irm { position:absolute; top:-8px; right:-8px; width:22px; height:22px; border-radius:50%; background:var(--danger); color:#fff; border:none; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 
-    /* ===== チェックボックス ===== */
-    .checkbox-wrap { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-radius: var(--radius-sm); background: var(--success-light); border: 1.5px solid #A7F3D0; cursor: pointer; }
-    .checkbox-wrap input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; }
-    .checkbox-wrap label { font-weight: 600; color: #065F46; cursor: pointer; font-size: 0.875rem; }
+    /* チェックボックス */
+    .cbwrap { display:flex; align-items:center; gap:10px; padding:13px 16px; border-radius:var(--rs); background:var(--success-light); border:1.5px solid #A7F3D0; cursor:pointer; }
+    .cbwrap input { width:20px; height:20px; accent-color:var(--success); cursor:pointer; flex-shrink:0; }
+    .cbwrap label { font-weight:600; color:#065F46; cursor:pointer; font-size:.875rem; }
 
-    /* ===== ログ ===== */
-    .log-area { max-height: 180px; overflow-y: auto; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--gray-50); font-size: 0.8rem; font-family: 'SF Mono','Fira Code','Consolas',monospace; margin-top: 10px; }
-    .log-line { padding: 1px 0; color: var(--gray-600); }
-    .log-line.ok  { color: var(--success); }
-    .log-line.err { color: var(--danger); }
+    /* ログ */
+    .log { max-height:180px; overflow-y:auto; border:1.5px solid var(--g200); border-radius:var(--rs); padding:10px 12px; background:var(--g50); font-size:.8rem; font-family:'SF Mono','Fira Code','Consolas',monospace; margin-top:10px; }
+    .ll   { padding:1px 0; color:var(--g600); }
+    .ll.ok  { color:var(--success); }
+    .ll.er  { color:var(--danger); }
 
-    /* ===== ステップ切り替え ===== */
-    .step-container { display: none; }
-    .step-container.active { display: block; }
+    /* ステップ切り替え */
+    .sc  { display:none; }
+    .sc.on { display:block; }
 
-    /* ===== スピナー ===== */
-    .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* スピナー */
+    .spin { width:18px; height:18px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; flex-shrink:0; }
+    @keyframes sp { to { transform:rotate(360deg); } }
 
-    /* ===== 完了 ===== */
-    .complete-card { text-align: center; padding: 32px 16px; }
-    .complete-card .big-icon { font-size: 3.2rem; margin-bottom: 14px; }
-    .complete-card h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
-    .complete-card p { color: var(--gray-600); font-size: 0.875rem; margin-bottom: 18px; }
+    /* 完了 */
+    .done-card { text-align:center; padding:32px 16px; }
+    .done-card .dicon { font-size:3.2rem; margin-bottom:14px; }
+    .done-card h2 { font-size:1.25rem; font-weight:700; margin-bottom:8px; }
+    .done-card p  { color:var(--g600); font-size:.875rem; margin-bottom:18px; }
 
-    /* ===== トースト ===== */
-    #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--danger); color: #fff; padding: 11px 22px; border-radius: var(--radius); box-shadow: var(--shadow-lg); font-size: 0.86rem; font-weight: 600; z-index: 999; display: none; max-width: calc(100vw - 40px); text-align: center; }
+    /* トースト */
+    #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--danger); color:#fff; padding:11px 22px; border-radius:var(--r); box-shadow:var(--shl); font-size:.86rem; font-weight:600; z-index:999; display:none; max-width:calc(100vw - 40px); text-align:center; }
 
-    @media (min-width: 600px) { .container { padding: 28px 24px 80px; } }
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: var(--gray-100); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+    @media(min-width:600px){ .wrap{ padding:28px 24px 80px; } }
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:var(--g100);border-radius:3px}
+    ::-webkit-scrollbar-thumb{background:var(--g300);border-radius:3px}
   </style>
 </head>
 <body>
 
 <!-- ヘッダー -->
-<header class="app-header">
+<header class="header">
   <h1><span>✉️</span>一斉メール送信システム</h1>
-  <div class="auth-badge">
-    <div class="auth-dot loading" id="auth-dot"></div>
-    <span class="auth-email" id="auth-email">確認中...</span>
+  <div class="abadge">
+    <div class="adot" id="adot"></div>
+    <span class="aemail" id="aemail">読み込み中...</span>
   </div>
 </header>
 
-<!-- ===== ローディング画面（起動直後） ===== -->
-<div id="loading-screen">
-  <div class="loading-inner">
-    <div class="big-spinner"></div>
-    <div>認証状態を確認中...</div>
-  </div>
-</div>
-
-<!-- ===== 承認が必要な画面 ===== -->
-<div id="auth-screen" style="display:none;">
-  <div class="auth-card">
-    <div class="big-icon">🔐</div>
-    <h2>このアプリの承認が必要です</h2>
-    <p>初回利用時はGoogleアカウントでこのアプリへの<br>アクセスを承認してください。</p>
-    <div class="scope-list">
-      <ul>
-        <li>Gmailで下書き作成・メール送信</li>
-        <li>Googleスプレッドシートの閲覧</li>
-        <li>メールアドレスの確認</li>
-      </ul>
-    </div>
-    <p style="font-size:0.8rem;color:var(--gray-400);margin-bottom:20px;">
-      承認後、自動的にこのページに戻ります。
-    </p>
-    <button class="btn btn-primary btn-lg btn-full" id="auth-btn" onclick="startAuth()">
-      Googleで承認する →
-    </button>
-    <div id="auth-error" style="display:none;margin-top:12px;" class="alert alert-danger">
-      <span class="alert-icon">⚠️</span>
-      <div>承認URLを取得できませんでした。ページを再読み込みしてもう一度お試しください。</div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== メインUI ===== -->
-<div id="main-ui">
-<main class="container">
+<!-- メインコンテンツ（最初から表示） -->
+<div class="wrap">
 
   <!-- ステップインジケーター -->
-  <div class="step-indicator">
-    <div class="step-item active" id="si-1"><div class="step-num">①</div><div class="step-label">宛先<br>読込</div></div>
-    <div class="step-item"        id="si-2"><div class="step-num">②</div><div class="step-label">メール<br>作成</div></div>
-    <div class="step-item"        id="si-3"><div class="step-num">③</div><div class="step-label">テスト<br>送信</div></div>
-    <div class="step-item"        id="si-4"><div class="step-num">④</div><div class="step-label">下書き<br>作成</div></div>
+  <div class="steps">
+    <div class="si active" id="si1"><div class="snum">①</div><div class="slabel">宛先<br>読込</div></div>
+    <div class="si"        id="si2"><div class="snum">②</div><div class="slabel">メール<br>作成</div></div>
+    <div class="si"        id="si3"><div class="snum">③</div><div class="slabel">テスト<br>送信</div></div>
+    <div class="si"        id="si4"><div class="snum">④</div><div class="slabel">下書き<br>作成</div></div>
   </div>
 
   <!-- ======== STEP 1 ======== -->
-  <div class="step-container active" id="step-1">
+  <div class="sc on" id="s1">
     <div class="card">
-      <div class="card-title"><span>📊</span>宛先リストを読み込む</div>
+      <div class="ctitle"><span>📊</span>宛先リストを読み込む</div>
 
       <!-- 固定シート情報 -->
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--g50);border:1.5px solid var(--g200);border-radius:var(--rs);margin-bottom:16px;">
         <span style="font-size:1.4rem;flex-shrink:0;">📋</span>
         <div>
-          <div style="font-weight:600;color:var(--gray-800);font-size:0.9rem;">メールアドレス一覧</div>
+          <div style="font-weight:600;color:var(--g800);font-size:.9rem;">メールアドレス一覧</div>
           <a href="https://docs.google.com/spreadsheets/d/1jvt9gzQDxIrwTr4gwZS1Umhu1CULhi8GMKd8F1UFTKQ/edit"
-            target="_blank" style="font-size:0.78rem;color:var(--primary);">
-            スプレッドシートを開く ↗
-          </a>
+            target="_blank" style="font-size:.78rem;color:var(--primary);">スプレッドシートを開く ↗</a>
         </div>
       </div>
 
-      <div id="step1-alert" style="display:none;"></div>
+      <div id="a1" style="display:none;"></div>
 
-      <button class="btn btn-primary" id="load-btn" onclick="loadSheet()">
-        <span id="load-text">📂 宛先を読み込む</span>
-        <div class="spinner" id="load-spinner" style="display:none;"></div>
+      <button class="btn bp" id="lbtn" onclick="loadSheet()">
+        <span id="ltxt">📂 宛先を読み込む</span>
+        <div class="spin" id="lsp" style="display:none;"></div>
       </button>
     </div>
 
-    <div class="card" id="recipients-card" style="display:none;">
-      <div class="card-title">
-        <span>👥</span>宛先リスト
-        <span class="badge badge-primary" id="recipients-count"></span>
-      </div>
-      <div id="recipients-info"></div>
-      <div class="table-wrap">
+    <div class="card" id="rcard" style="display:none;">
+      <div class="ctitle"><span>👥</span>宛先リスト <span class="badge" id="rcnt"></span></div>
+      <div id="rinfo" style="display:none;"></div>
+      <div class="tw">
         <table>
           <thead><tr><th>#</th><th>名前</th><th>メールアドレス</th></tr></thead>
-          <tbody id="recipients-tbody"></tbody>
+          <tbody id="rtb"></tbody>
         </table>
       </div>
       <div style="margin-top:14px;">
-        <button class="btn btn-primary" onclick="goToStep(2)">次へ: メール作成 →</button>
+        <button class="btn bp" onclick="go(2)">次へ: メール作成 →</button>
       </div>
     </div>
   </div>
 
   <!-- ======== STEP 2 ======== -->
-  <div class="step-container" id="step-2">
+  <div class="sc" id="s2">
     <div class="card">
-      <div class="card-title"><span>✍️</span>メールを作成する</div>
+      <div class="ctitle"><span>✍️</span>メールを作成する</div>
 
-      <div class="form-group">
-        <label class="form-label" for="mail-subject">件名</label>
-        <input class="form-input" type="text" id="mail-subject"
-          placeholder="例: 【ご案内】〇〇のお知らせ" oninput="updatePreview()" />
+      <div class="fg">
+        <label class="fl" for="subj">件名</label>
+        <input class="fi" type="text" id="subj" placeholder="例: 【ご案内】〇〇のお知らせ" oninput="updatePv()" />
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="mail-body">
+      <div class="fg">
+        <label class="fl" for="body">
           本文
-          <span style="font-weight:400;color:var(--gray-400);font-size:0.76rem;"> ※先頭に「{名前}様」が自動付与されます</span>
+          <span style="font-weight:400;color:var(--g400);font-size:.76rem;"> ※先頭に「{名前}様」が自動付与されます</span>
         </label>
-        <textarea class="form-textarea" id="mail-body"
-          placeholder="本文を入力してください。" oninput="updatePreview()"></textarea>
+        <textarea class="ft" id="body" placeholder="本文を入力してください。" oninput="updatePv()"></textarea>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">画像添付（任意）</label>
-        <div class="image-upload-area" id="upload-area"
-          onclick="document.getElementById('img-input').click()"
-          ondragover="onDragOver(event)" ondrop="onDrop(event)"
-          ondragleave="this.classList.remove('dragover')">
-          <input type="file" id="img-input" accept="image/*" onchange="onImageSelect(this)" />
-          <div id="upload-placeholder">
+      <div class="fg">
+        <label class="fl">画像添付（任意）</label>
+        <div class="imgup" id="iup"
+          onclick="document.getElementById('ifile').click()"
+          ondragover="dgo(event)" ondrop="ddr(event)"
+          ondragleave="this.classList.remove('dg')">
+          <input type="file" id="ifile" accept="image/*" onchange="imgSel(this)" />
+          <div id="iph">
             <div style="font-size:1.8rem;margin-bottom:6px;">🖼️</div>
-            <div style="font-weight:600;color:var(--gray-600);font-size:0.875rem;">クリックまたはドラッグ&amp;ドロップ</div>
-            <div style="font-size:0.78rem;color:var(--gray-400);margin-top:3px;">JPG / PNG / GIF / WebP</div>
+            <div style="font-weight:600;color:var(--g600);font-size:.875rem;">クリックまたはドラッグ&amp;ドロップ</div>
+            <div style="font-size:.78rem;color:var(--g400);margin-top:3px;">JPG / PNG / GIF / WebP</div>
           </div>
-          <div class="img-preview-wrap" id="img-preview-wrap" style="display:none;">
-            <img id="img-preview" src="" alt="プレビュー" />
-            <button class="img-remove-btn" onclick="removeImage(event)" title="削除">×</button>
+          <div class="ipw" id="ipw" style="display:none;">
+            <img id="ipimg" src="" alt="プレビュー" />
+            <button class="irm" onclick="rmImg(event)" title="削除">×</button>
           </div>
         </div>
       </div>
 
       <div style="margin-top:6px;">
-        <div class="preview-label">📧 メールプレビュー</div>
-        <div class="preview-frame">
-          <div class="preview-header">
-            差出人: <strong id="preview-from">—</strong>
-            &nbsp;|&nbsp; 件名: <span id="preview-subject">（未入力）</span>
+        <div class="pvlabel">📧 メールプレビュー</div>
+        <div class="pvframe">
+          <div class="pvhead">
+            差出人: <strong id="pvfrom">—</strong>
+            &nbsp;|&nbsp; 件名: <span id="pvsubj">（未入力）</span>
           </div>
-          <div class="preview-body" id="preview-body">
-            <span style="color:var(--gray-400);">件名と本文を入力するとプレビューが表示されます</span>
+          <div class="pvbody" id="pvbody">
+            <span style="color:var(--g400);">件名と本文を入力するとプレビューが表示されます</span>
           </div>
         </div>
       </div>
     </div>
 
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <button class="btn btn-outline" onclick="goToStep(1)">← 宛先を変更</button>
-      <button class="btn btn-primary" id="to-step3-btn" onclick="goToStep(3)" disabled>次へ: テスト送信 →</button>
+      <button class="btn bo" onclick="go(1)">← 宛先を変更</button>
+      <button class="btn bp" id="s2btn" onclick="go(3)" disabled>次へ: テスト送信 →</button>
     </div>
   </div>
 
   <!-- ======== STEP 3 ======== -->
-  <div class="step-container" id="step-3">
+  <div class="sc" id="s3">
     <div class="card">
-      <div class="card-title"><span>📨</span>テストメールを送信する</div>
-      <p style="color:var(--gray-600);font-size:0.855rem;margin-bottom:14px;">
+      <div class="ctitle"><span>📨</span>テストメールを送信する</div>
+      <p style="color:var(--g600);font-size:.855rem;margin-bottom:14px;">
         宛先リスト1件目の名前でプレビュー送信します。<br>
-        <strong>差出人はあなたのGoogleアカウント（<span id="test-sender">—</span>）</strong>になります。
+        <strong>差出人: <span id="s3from">—</span></strong>
       </p>
-
-      <div id="step3-alert" style="display:none;"></div>
-
-      <div class="form-group">
-        <label class="form-label" for="test-to">テスト送信先</label>
-        <input class="form-input" type="email" id="test-to" placeholder="your@example.com" />
-        <div class="form-hint">省略時はあなた自身（<span id="test-to-hint">—</span>）へ送信</div>
+      <div id="a3" style="display:none;"></div>
+      <div class="fg">
+        <label class="fl" for="tto">テスト送信先</label>
+        <input class="fi" type="email" id="tto" placeholder="" />
+        <div class="fh">省略時はあなた自身（<span id="tto_hint">—</span>）へ送信</div>
       </div>
-
-      <button class="btn btn-primary" id="test-btn" onclick="sendTestMail()">
-        <span id="test-text">📤 テストメールを送信</span>
-        <div class="spinner" id="test-spinner" style="display:none;"></div>
+      <button class="btn bp" id="tbtn" onclick="testSend()">
+        <span id="ttxt">📤 テストメールを送信</span>
+        <div class="spin" id="tsp" style="display:none;"></div>
       </button>
     </div>
 
-    <div class="card" id="confirm-card" style="display:none;">
-      <div class="checkbox-wrap">
-        <input type="checkbox" id="confirm-check" onchange="onConfirmChange()" />
-        <label for="confirm-check">✅ テストメールの内容を確認しました。本番送信へ進みます。</label>
+    <div class="card" id="cfcard" style="display:none;">
+      <div class="cbwrap">
+        <input type="checkbox" id="cbck" onchange="cbChange()" />
+        <label for="cbck">✅ テストメールの内容を確認しました。本番送信へ進みます。</label>
       </div>
     </div>
 
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;">
-      <button class="btn btn-outline" onclick="goToStep(2)">← メールを修正</button>
-      <button class="btn btn-success" id="to-step4-btn" onclick="goToStep(4)" disabled>次へ: 下書き一斉作成 →</button>
+      <button class="btn bo" onclick="go(2)">← メールを修正</button>
+      <button class="btn bs" id="s3btn" onclick="go(4)" disabled>次へ: 下書き一斉作成 →</button>
     </div>
   </div>
 
   <!-- ======== STEP 4 ======== -->
-  <div class="step-container" id="step-4">
+  <div class="sc" id="s4">
     <div class="card">
-      <div class="card-title"><span>🚀</span>下書きを一斉作成する</div>
+      <div class="ctitle"><span>🚀</span>下書きを一斉作成する</div>
 
-      <div class="alert alert-info" id="draft-summary">
-        <span class="alert-icon">ℹ️</span>
-        <div id="draft-summary-text"></div>
+      <div class="alert ainfo" id="s4sum">
+        <span class="ai">ℹ️</span>
+        <div id="s4sumtxt"></div>
       </div>
 
-      <div id="step4-alert" style="display:none;"></div>
+      <div id="a4" style="display:none;"></div>
 
-      <div id="progress-area" style="display:none;">
-        <div class="progress-wrap">
-          <div class="progress-header">
-            <span id="progress-label">下書きを作成中...</span>
-            <span id="progress-count">0 / 0</span>
+      <!-- 進捗 -->
+      <div id="pgarea" style="display:none;">
+        <div class="pw">
+          <div class="ph">
+            <span id="pglabel">下書きを作成中...</span>
+            <span id="pgcnt">0 / 0</span>
           </div>
-          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="pb"><div class="pf" id="pgfill"></div></div>
         </div>
-        <div class="log-area" id="log-area"></div>
+        <div class="log" id="logarea"></div>
       </div>
 
-      <div id="complete-area" style="display:none;" class="complete-card">
-        <div class="big-icon">🎉</div>
-        <h2 id="complete-title"></h2>
-        <p id="complete-msg"></p>
+      <!-- 完了 -->
+      <div id="donearea" style="display:none;" class="done-card">
+        <div class="dicon">🎉</div>
+        <h2 id="donetitle"></h2>
+        <p id="donemsg"></p>
         <a href="https://mail.google.com/mail/u/0/#drafts" target="_blank"
-          class="btn btn-primary" style="margin-bottom:14px;">📬 Gmailの下書きを開く</a>
-        <div class="alert alert-info" style="text-align:left;margin-top:14px;">
-          <span class="alert-icon">💡</span>
-          <div>
-            <strong>送信予約:</strong> Gmailで下書きを開き →
-            送信ボタン横の「▼」→「送信日時を指定」
-          </div>
+          class="btn bp" style="margin-bottom:14px;">📬 Gmailの下書きを開く</a>
+        <div class="alert ainfo" style="text-align:left;margin-top:14px;">
+          <span class="ai">💡</span>
+          <div><strong>送信予約:</strong> Gmailで下書きを開き → 送信ボタン横「▼」→「送信日時を指定」</div>
         </div>
       </div>
 
-      <div id="draft-btn-area">
-        <button class="btn btn-success btn-full btn-lg" id="create-drafts-btn" onclick="startCreateDrafts()">
-          <span id="draft-btn-text">📝 下書きを一斉作成する（<span id="draft-count-label">0</span>件）</span>
-          <div class="spinner" id="draft-spinner" style="display:none;"></div>
+      <!-- ボタン -->
+      <div id="dbtnarea">
+        <button class="btn bs bfull blg" id="dbtn" onclick="doDrafts()">
+          <span id="dtxt">📝 下書きを一斉作成する（<span id="dcnt">0</span>件）</span>
+          <div class="spin" id="dsp" style="display:none;"></div>
         </button>
       </div>
     </div>
 
-    <button class="btn btn-outline" onclick="goToStep(3)">← テスト送信に戻る</button>
+    <button class="btn bo" onclick="go(3)">← テスト送信に戻る</button>
   </div>
 
-</main>
-</div><!-- /#main-ui -->
-
+</div><!-- /.wrap -->
 <div id="toast"></div>
 
 <script>
-  // ===== 状態 =====
-  const state = {
-    userEmail: '',
-    authUrl: '',
-    recipients: [],
-    imageBase64: null,
-    confirmed: false,
-  };
-  const BATCH_SIZE = 10;
+  var S = { email:'', recipients:[], img:null, confirmed:false };
+  var BATCH = 10;
 
-  // ===== 起動：認証チェック =====
-  window.addEventListener('load', () => {
+  // ===== 起動：メールアドレス取得のみ（認証は doGet() 済み） =====
+  window.addEventListener('load', function() {
     google.script.run
-      .withSuccessHandler(onAuthChecked)
-      .withFailureHandler(onAuthCheckFailed)
-      .getAuthStatus();
+      .withSuccessHandler(function(r){
+        S.email = r.email || '';
+        document.getElementById('adot').className  = 'adot on';
+        document.getElementById('aemail').textContent = r.email || '—';
+        document.getElementById('pvfrom').textContent = r.email || '—';
+        document.getElementById('s3from').textContent = r.email || '—';
+        document.getElementById('tto_hint').textContent = r.email || '';
+        document.getElementById('tto').placeholder = r.email || '';
+      })
+      .withFailureHandler(function(e){
+        document.getElementById('aemail').textContent = '取得失敗';
+      })
+      .getAuthInfo();
+
+    document.getElementById('subj').addEventListener('input', syncS2);
+    document.getElementById('body').addEventListener('input', syncS2);
   });
 
-  function onAuthChecked(status) {
-    hide('loading-screen');
-    if (!status.authorized) {
-      // 承認が必要
-      state.authUrl = status.authUrl || '';
-      if (!status.authUrl) show('auth-error');
-      show('auth-screen', 'flex');
-      setDot('warn');
-      setText('auth-email', '承認が必要');
-    } else {
-      // 承認済み → メインUIを表示
-      initMainUI(status.email);
-    }
-  }
-
-  function onAuthCheckFailed(err) {
-    // getAuthStatus 自体が失敗した場合（スコープ不足の可能性）
-    hide('loading-screen');
-    state.authUrl = '';
-    show('auth-screen', 'flex');
-    setDot('warn');
-    setText('auth-email', '承認が必要');
-    // エラー詳細を表示
-    const errEl = document.getElementById('auth-error');
-    errEl.querySelector('div').textContent =
-      '認証チェックに失敗しました: ' + (err.message || err) +
-      '\nページを再読み込みしてください。';
-    show('auth-error');
-  }
-
-  function startAuth() {
-    if (!state.authUrl) {
-      show('auth-error');
-      return;
-    }
-    // 同じタブで承認URLへ遷移（承認後アプリに戻る）
-    window.top.location.href = state.authUrl;
-  }
-
-  function initMainUI(email) {
-    state.userEmail = email;
-    setDot('ok');
-    setText('auth-email', email);
-    // Step3の差出人・送信先ヒントを設定
-    setText('test-sender', email);
-    setText('test-to-hint', email);
-    document.getElementById('test-to').placeholder = email;
-    // プレビューの差出人を設定
-    setText('preview-from', email);
-    show('main-ui');
-    document.getElementById('mail-subject').addEventListener('input', syncStep2Btn);
-    document.getElementById('mail-body').addEventListener('input', syncStep2Btn);
-  }
-
   // ===== ステップ遷移 =====
-  function goToStep(n) {
-    if (n === 2 && state.recipients.length === 0) { showToast('先に宛先を読み込んでください'); return; }
-    if (n === 3 && (!getSubject() || !getBody())) { showToast('件名と本文を入力してください'); return; }
-    if (n === 4 && !state.confirmed) { showToast('テストメールを確認してチェックを入れてください'); return; }
+  function go(n) {
+    if (n===2 && S.recipients.length===0){ toast('先に宛先を読み込んでください'); return; }
+    if (n===3 && (!gS()||!gB()))         { toast('件名と本文を入力してください');  return; }
+    if (n===4 && !S.confirmed)           { toast('テストメールを確認してチェックを入れてください'); return; }
 
-    document.querySelectorAll('.step-container').forEach(el => el.classList.remove('active'));
-    document.getElementById('step-' + n).classList.add('active');
-    for (let i = 1; i <= 4; i++) {
-      const si = document.getElementById('si-' + i);
-      si.classList.remove('active', 'done');
-      if (i < n) si.classList.add('done');
-      else if (i === n) si.classList.add('active');
+    for(var i=1;i<=4;i++){
+      document.getElementById('s'+i).className = 'sc' + (i===n ? ' on' : '');
+      var si = document.getElementById('si'+i);
+      si.className = 'si' + (i<n ? ' done' : i===n ? ' active' : '');
     }
-    if (n === 4) refreshDraftSummary();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if(n===4) refreshSum();
+    window.scrollTo({top:0,behavior:'smooth'});
   }
 
-  // ===== STEP 1: 宛先読み込み =====
+  // ===== STEP 1 =====
   function loadSheet() {
-    setBtnLoading('load-btn', 'load-text', 'load-spinner', true, '読み込み中...');
-    hideAlert('step1-alert');
-
+    btnL('lbtn','ltxt','lsp',true,'読み込み中...');
+    hd('a1');
     google.script.run
-      .withSuccessHandler(data => {
-        setBtnLoading('load-btn', 'load-text', 'load-spinner', false, '📂 宛先を読み込む');
-        state.recipients = data.recipients;
-        renderRecipients(data);
-        setAlert('step1-alert', 'success',
-          '✅ ' + data.total + '件の宛先を読み込みました（シート: ' + esc(data.sheetTitle) + '）');
+      .withSuccessHandler(function(d){
+        btnL('lbtn','ltxt','lsp',false,'📂 宛先を読み込む');
+        S.recipients = d.recipients;
+        renderR(d);
+        alrt('a1','ok','✅ '+d.total+'件の宛先を読み込みました（シート: '+esc(d.sheetTitle)+'）');
       })
-      .withFailureHandler(err => {
-        setBtnLoading('load-btn', 'load-text', 'load-spinner', false, '📂 宛先を読み込む');
-        setAlert('step1-alert', 'danger',
-          '❌ 読み込みに失敗しました\n' + (err.message || err));
+      .withFailureHandler(function(e){
+        btnL('lbtn','ltxt','lsp',false,'📂 宛先を読み込む');
+        alrt('a1','er','❌ 読み込みに失敗しました\n'+(e.message||e));
       })
       .loadRecipients();
   }
 
-  function renderRecipients(data) {
-    document.getElementById('recipients-count').textContent = data.total + '件';
-    const info = document.getElementById('recipients-info');
-    info.className = 'alert alert-info';
-    info.innerHTML = '<span class="alert-icon">ℹ️</span><div>検出した列: <strong>' +
-      esc(data.nameColumn) + '</strong>（名前）、<strong>' +
-      esc(data.emailColumn) + '</strong>（メールアドレス）</div>';
-    info.style.display = '';
-
-    const max = Math.min(data.recipients.length, 25);
-    let rows = data.recipients.slice(0, max).map((r, i) =>
-      '<tr><td style="color:var(--gray-400);font-size:0.78rem;">' + (i+1) + '</td>' +
-      '<td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td></tr>'
-    ).join('');
-    if (data.total > 25) {
-      rows += '<tr><td colspan="3" style="text-align:center;color:var(--gray-400);font-size:0.8rem;padding:10px;">' +
-        '…他 ' + (data.total - 25) + ' 件（合計 ' + data.total + ' 件）</td></tr>';
-    }
-    document.getElementById('recipients-tbody').innerHTML = rows;
-    document.getElementById('recipients-card').style.display = '';
+  function renderR(d) {
+    document.getElementById('rcnt').textContent = d.total+'件';
+    var ri = document.getElementById('rinfo');
+    ri.className = 'alert ainfo';
+    ri.innerHTML = '<span class="ai">ℹ️</span><div>検出した列: <strong>'+esc(d.nameColumn)+'</strong>（名前）、<strong>'+esc(d.emailColumn)+'</strong>（メールアドレス）</div>';
+    ri.style.display = '';
+    var max = Math.min(d.recipients.length, 25);
+    var rows = d.recipients.slice(0,max).map(function(r,i){
+      return '<tr><td style="color:var(--g400);font-size:.78rem;">'+(i+1)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td></tr>';
+    }).join('');
+    if(d.total>25) rows += '<tr><td colspan="3" style="text-align:center;color:var(--g400);font-size:.8rem;padding:10px;">…他 '+(d.total-25)+' 件（合計 '+d.total+' 件）</td></tr>';
+    document.getElementById('rtb').innerHTML = rows;
+    document.getElementById('rcard').style.display = '';
   }
 
-  // ===== STEP 2: メール作成 =====
-  function getSubject() { return document.getElementById('mail-subject').value.trim(); }
-  function getBody()    { return document.getElementById('mail-body').value.trim(); }
+  // ===== STEP 2 =====
+  function gS(){ return document.getElementById('subj').value.trim(); }
+  function gB(){ return document.getElementById('body').value.trim(); }
 
-  function updatePreview() {
-    const subject = getSubject();
-    const body    = getBody();
-    const name    = state.recipients.length > 0 ? state.recipients[0].name  : 'サンプル太郎';
-    const email   = state.recipients.length > 0 ? state.recipients[0].email : '（未読込）';
-
-    setText('preview-subject', subject || '（未入力）');
-
-    const bodyHtml = body
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/\n/g,'<br>');
-    const imgSection = state.imageBase64
-      ? '<div style="margin-top:12px;"><img src="' + state.imageBase64 + '" style="max-width:100%;height:auto;"/></div>'
-      : '';
-    document.getElementById('preview-body').innerHTML = body
-      ? '<p style="margin-bottom:10px;">' + esc(name) + '様</p>' +
-        '<div style="line-height:1.8;">' + bodyHtml + '</div>' + imgSection
-      : '<span style="color:var(--gray-400);">件名と本文を入力するとプレビューが表示されます</span>';
-
-    syncStep2Btn();
+  function updatePv() {
+    var s = gS(), b = gB();
+    var name  = S.recipients.length>0 ? S.recipients[0].name  : 'サンプル太郎';
+    document.getElementById('pvsubj').textContent = s || '（未入力）';
+    var bh = b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    var im = S.img ? '<div style="margin-top:12px;"><img src="'+S.img+'" style="max-width:100%;height:auto;"/></div>' : '';
+    document.getElementById('pvbody').innerHTML = b
+      ? '<p style="margin-bottom:10px;">'+esc(name)+'様</p><div style="line-height:1.8;">'+bh+'</div>'+im
+      : '<span style="color:var(--g400);">件名と本文を入力するとプレビューが表示されます</span>';
+    syncS2();
   }
+  function syncS2(){ document.getElementById('s2btn').disabled = !(gS()&&gB()); }
 
-  function syncStep2Btn() {
-    document.getElementById('to-step3-btn').disabled = !(getSubject() && getBody());
+  function imgSel(i){ if(i.files[0]) readImg(i.files[0]); }
+  function dgo(e){ e.preventDefault(); document.getElementById('iup').classList.add('dg'); }
+  function ddr(e){
+    e.preventDefault(); document.getElementById('iup').classList.remove('dg');
+    var f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) readImg(f);
   }
-
-  // ===== 画像 =====
-  function onImageSelect(input) { if (input.files[0]) processImage(input.files[0]); }
-  function onDragOver(e) { e.preventDefault(); document.getElementById('upload-area').classList.add('dragover'); }
-  function onDrop(e) {
-    e.preventDefault();
-    document.getElementById('upload-area').classList.remove('dragover');
-    const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith('image/')) processImage(f);
-  }
-  function processImage(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      state.imageBase64 = e.target.result;
-      document.getElementById('img-preview').src = e.target.result;
-      hide('upload-placeholder');
-      show('img-preview-wrap', 'inline-block');
-      updatePreview();
+  function readImg(f){
+    var r=new FileReader();
+    r.onload=function(e){
+      S.img=e.target.result;
+      document.getElementById('ipimg').src=e.target.result;
+      document.getElementById('iph').style.display='none';
+      document.getElementById('ipw').style.display='inline-block';
+      updatePv();
     };
-    reader.readAsDataURL(file);
+    r.readAsDataURL(f);
   }
-  function removeImage(e) {
-    e.stopPropagation();
-    state.imageBase64 = null;
-    document.getElementById('img-input').value = '';
-    document.getElementById('img-preview').src = '';
-    show('upload-placeholder');
-    hide('img-preview-wrap');
-    updatePreview();
+  function rmImg(e){
+    e.stopPropagation(); S.img=null;
+    document.getElementById('ifile').value='';
+    document.getElementById('ipimg').src='';
+    document.getElementById('iph').style.display='';
+    document.getElementById('ipw').style.display='none';
+    updatePv();
   }
 
-  // ===== STEP 3: テスト送信 =====
-  function sendTestMail() {
-    const to      = document.getElementById('test-to').value.trim() || state.userEmail;
-    const subject = getSubject();
-    const body    = getBody();
-    if (!subject || !body) { setAlert('step3-alert', 'warning', '件名と本文を入力してください'); return; }
-
-    setBtnLoading('test-btn', 'test-text', 'test-spinner', true, '送信中...');
-    hideAlert('step3-alert');
-
+  // ===== STEP 3 =====
+  function testSend() {
+    var to=document.getElementById('tto').value.trim()||S.email;
+    var s=gS(), b=gB();
+    if(!s||!b){ alrt('a3','aw','件名と本文を入力してください'); return; }
+    btnL('tbtn','ttxt','tsp',true,'送信中...');
+    hd('a3');
     google.script.run
-      .withSuccessHandler(() => {
-        setBtnLoading('test-btn', 'test-text', 'test-spinner', false, '📤 テストメールを送信');
-        setAlert('step3-alert', 'success',
-          '✅ <strong>' + esc(to) + '</strong> へ送信しました。受信トレイを確認してください。');
-        document.getElementById('confirm-card').style.display = '';
+      .withSuccessHandler(function(){
+        btnL('tbtn','ttxt','tsp',false,'📤 テストメールを送信');
+        alrt('a3','ok','✅ <strong>'+esc(to)+'</strong> へ送信しました。受信トレイを確認してください。');
+        document.getElementById('cfcard').style.display='';
       })
-      .withFailureHandler(err => {
-        setBtnLoading('test-btn', 'test-text', 'test-spinner', false, '📤 テストメールを送信');
-        setAlert('step3-alert', 'danger', '❌ ' + (err.message || err));
+      .withFailureHandler(function(e){
+        btnL('tbtn','ttxt','tsp',false,'📤 テストメールを送信');
+        alrt('a3','er','❌ '+(e.message||e));
       })
       .sendTestEmail({
-        to,
-        subject,
-        body,
-        imageBase64: state.imageBase64,
-        previewName: state.recipients.length > 0 ? state.recipients[0].name : 'テスト受信者',
+        to:to, subject:s, body:b, imageBase64:S.img,
+        previewName: S.recipients.length>0 ? S.recipients[0].name : 'テスト受信者'
       });
   }
-
-  function onConfirmChange() {
-    state.confirmed = document.getElementById('confirm-check').checked;
-    document.getElementById('to-step4-btn').disabled = !state.confirmed;
+  function cbChange(){
+    S.confirmed=document.getElementById('cbck').checked;
+    document.getElementById('s3btn').disabled=!S.confirmed;
   }
 
-  // ===== STEP 4: 下書き一斉作成 =====
-  function refreshDraftSummary() {
-    document.getElementById('draft-count-label').textContent = state.recipients.length;
-    document.getElementById('draft-summary-text').innerHTML =
-      '<strong>' + state.recipients.length + '件</strong>の宛先に下書きを作成します。' +
-      '<br>件名: <strong>' + esc(getSubject()) + '</strong>' +
-      '<br>差出人: <strong>' + esc(state.userEmail) + '</strong>';
+  // ===== STEP 4 =====
+  function refreshSum(){
+    document.getElementById('dcnt').textContent=S.recipients.length;
+    document.getElementById('s4sumtxt').innerHTML=
+      '<strong>'+S.recipients.length+'件</strong>の宛先に下書きを作成します。'+
+      '<br>件名: <strong>'+esc(gS())+'</strong>'+
+      '<br>差出人: <strong>'+esc(S.email)+'</strong>';
   }
 
-  async function startCreateDrafts() {
-    hide('draft-btn-area');
-    show('progress-area');
-    hideAlert('step4-alert');
+  function doDrafts() {
+    var s=gS(), b=gB();
+    if(!s||!b){ alrt('a4','aw','件名と本文が設定されていません'); return; }
+    document.getElementById('dbtnarea').style.display='none';
+    document.getElementById('pgarea').style.display='';
+    hd('a4');
+    var logEl=document.getElementById('logarea');
+    logEl.innerHTML='';
+    var total=S.recipients.length, done=0, ok=0, ng=0, errs=[];
+    var chunks=[];
+    for(var i=0;i<total;i+=BATCH) chunks.push(S.recipients.slice(i,i+BATCH));
+    pgUI(0,total,'下書きを作成中...');
 
-    const logArea = document.getElementById('log-area');
-    logArea.innerHTML = '';
-
-    const total      = state.recipients.length;
-    let processed    = 0, totalSuccess = 0, totalFailed = 0, totalErrors = [];
-
-    const chunks = [];
-    for (let i = 0; i < total; i += BATCH_SIZE) chunks.push(state.recipients.slice(i, i + BATCH_SIZE));
-
-    updateProgressUI(0, total, '下書きを作成中...');
-
-    for (let ci = 0; ci < chunks.length; ci++) {
-      const chunk = chunks[ci];
-      try {
-        const result = await callGas('createDraftBatch', {
-          recipients: chunk, subject: getSubject(), body: getBody(),
-          imageBase64: state.imageBase64 || null,
-        });
-
-        totalSuccess += result.success;
-        totalFailed  += result.failed;
-        totalErrors   = totalErrors.concat(result.errors || []);
-        processed    += chunk.length;
-
-        chunk.forEach((r, i) => {
-          const isErr = (result.errors || []).some(e => e.email === r.email);
-          const idx   = processed - chunk.length + i + 1;
-          addLog(logArea,
-            (isErr ? '✗' : '✓') + ' [' + idx + '/' + total + '] ' + r.name + ' <' + r.email + '>',
-            isErr ? 'err' : 'ok'
-          );
-        });
-
-        updateProgressUI(processed, total, processed + '/' + total + ' 件完了');
-
-      } catch (err) {
-        totalFailed += chunk.length;
-        chunk.forEach(r => {
-          totalErrors.push({ name: r.name, email: r.email, error: err.message });
-          addLog(logArea, '✗ ' + r.name + ' <' + r.email + '>: ' + err.message, 'err');
-        });
-        processed += chunk.length;
-        updateProgressUI(processed, total, 'エラーが発生しました');
-      }
+    var ci=0;
+    function next(){
+      if(ci>=chunks.length){ finish(); return; }
+      var chunk=chunks[ci++];
+      google.script.run
+        .withSuccessHandler(function(r){
+          ok+=r.success; ng+=r.failed; errs=errs.concat(r.errors||[]);
+          done+=chunk.length;
+          chunk.forEach(function(rc,i){
+            var isE=(r.errors||[]).some(function(e){return e.email===rc.email;});
+            addLog(logEl,(isE?'✗':'✓')+' ['+(done-chunk.length+i+1)+'/'+total+'] '+rc.name+' <'+rc.email+'>',(isE?'er':'ok'));
+          });
+          pgUI(done,total,done+'/'+total+' 件完了');
+          next();
+        })
+        .withFailureHandler(function(e){
+          ng+=chunk.length;
+          chunk.forEach(function(rc){
+            errs.push({name:rc.name,email:rc.email,error:e.message});
+            addLog(logEl,'✗ '+rc.name+' <'+rc.email+'>: '+(e.message||e),'er');
+          });
+          done+=chunk.length;
+          pgUI(done,total,'エラーが発生しました');
+          next();
+        })
+        .createDraftBatch({recipients:chunk,subject:s,body:b,imageBase64:S.img||null});
     }
+    next();
 
-    setTimeout(() => {
-      hide('progress-area');
-      show('complete-area');
-      setText('complete-title', totalSuccess + '件の下書きを作成しました！');
-      document.getElementById('complete-msg').innerHTML =
-        totalFailed > 0
-          ? '✅ ' + totalSuccess + '件 成功 / ❌ ' + totalFailed + '件 失敗<br>' +
-            'Gmailの下書きフォルダから送信日時を指定して予約送信してください。'
-          : 'Gmailの下書きフォルダから送信日時を指定して予約送信してください。';
-    }, 600);
+    function finish(){
+      setTimeout(function(){
+        document.getElementById('pgarea').style.display='none';
+        document.getElementById('donearea').style.display='';
+        document.getElementById('donetitle').textContent=ok+'件の下書きを作成しました！';
+        document.getElementById('donemsg').innerHTML=
+          ng>0 ? '✅ '+ok+'件 成功 / ❌ '+ng+'件 失敗<br>Gmailの下書きフォルダから予約送信してください。'
+               : 'Gmailの下書きフォルダから送信日時を指定して予約送信してください。';
+      },600);
+    }
   }
 
   // ===== ユーティリティ =====
-  function callGas(fn, arg) {
-    return new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(e => reject(new Error(e.message || String(e))))
-        [fn](arg);
-    });
+  function pgUI(c,t,lbl){
+    var p=t>0?Math.round(c/t*100):0;
+    document.getElementById('pgfill').style.width=p+'%';
+    document.getElementById('pgcnt').textContent=c+' / '+t;
+    document.getElementById('pglabel').textContent=lbl;
   }
-
-  function updateProgressUI(cur, total, label) {
-    const pct = total > 0 ? Math.round(cur / total * 100) : 0;
-    document.getElementById('progress-fill').style.width  = pct + '%';
-    document.getElementById('progress-count').textContent = cur + ' / ' + total;
-    document.getElementById('progress-label').textContent = label;
+  function addLog(el,txt,cls){
+    var d=document.createElement('div');
+    d.className='ll'+(cls?' '+cls:'');
+    d.textContent=txt;
+    el.appendChild(d);
+    el.scrollTop=el.scrollHeight;
   }
-
-  function addLog(area, text, cls) {
-    const d = document.createElement('div');
-    d.className = 'log-line' + (cls ? ' ' + cls : '');
-    d.textContent = text;
-    area.appendChild(d);
-    area.scrollTop = area.scrollHeight;
+  function alrt(id,type,html){
+    var el=document.getElementById(id);
+    if(!el) return;
+    var cls={ok:'aok',aw:'aw',er:'aer',info:'ainfo'};
+    var ic={ok:'✅',aw:'⚠️',er:'❌',info:'ℹ️'};
+    var hasNL=html.indexOf('\n')!==-1;
+    el.className='alert '+(cls[type]||'ainfo');
+    el.innerHTML='<span class="ai">'+(ic[type]||'')+'</span>'+
+      (hasNL ? '<pre>'+esc(html.replace(/^[✅⚠️❌]\s*/,''))+'</pre>' : '<div>'+html+'</div>');
+    el.style.display='';
   }
-
-  function setAlert(id, type, html) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const icons = { success: '✅', warning: '⚠️', danger: '❌', info: 'ℹ️' };
-    el.className = 'alert alert-' + type;
-    // 改行を含む場合は pre タグで表示
-    const hasNewline = html.includes('\n');
-    el.innerHTML = '<span class="alert-icon">' + (icons[type] || '') + '</span>' +
-      (hasNewline ? '<pre>' + esc(html.replace(/^[❌✅⚠️ℹ️]\s*/, '')) + '</pre>'
-                  : '<div>' + html + '</div>');
-    el.style.display = '';
+  function hd(id){ var el=document.getElementById(id); if(el){el.innerHTML='';el.style.display='none';} }
+  function btnL(bid,tid,sid,on,txt){
+    document.getElementById(bid).disabled=on;
+    document.getElementById(tid).textContent=txt;
+    document.getElementById(sid).style.display=on?'':'none';
   }
-  function hideAlert(id) {
-    const el = document.getElementById(id);
-    if (el) { el.innerHTML = ''; el.style.display = 'none'; }
-  }
-
-  function setBtnLoading(btnId, textId, spinnerId, loading, text) {
-    document.getElementById(btnId).disabled = loading;
-    document.getElementById(textId).textContent = text;
-    document.getElementById(spinnerId).style.display = loading ? '' : 'none';
-  }
-
-  function show(id, display) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = display || '';
-  }
-  function hide(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  }
-  function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  }
-  function setDot(state) {
-    const d = document.getElementById('auth-dot');
-    d.className = 'auth-dot ' + state;
-  }
-  function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-  function showToast(msg) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.style.display = '';
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function toast(m){
+    var el=document.getElementById('toast');
+    el.textContent=m; el.style.display='';
     clearTimeout(window._tt);
-    window._tt = setTimeout(() => { el.style.display = 'none'; }, 3500);
+    window._tt=setTimeout(function(){el.style.display='none';},3500);
   }
 </script>
 </body>
